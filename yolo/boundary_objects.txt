@@ -1,0 +1,50 @@
+frame - 118
+
+frame - 2160
+tv - confidence = 0.8181177377700806 | 
+frame - 2174
+
+frame - 2771
+
+frame - 2938
+
+frame - 2940
+
+frame - 3256
+tv - confidence = 0.8381755352020264 | 
+frame - 3270
+person - confidence = 0.8343281745910645 | person - confidence = 0.7123206257820129 | 
+frame - 6588
+tv - confidence = 0.7714246511459351 | 
+frame - 6602
+person - confidence = 0.6802880764007568 | 
+frame - 7637
+
+frame - 7940
+tv - confidence = 0.8169323801994324 | 
+frame - 7954
+
+frame - 8535
+person - confidence = 0.7585434317588806 | 
+frame - 8579
+
+frame - 8770
+
+frame - 8973
+
+frame - 10210
+tv - confidence = 0.8620996475219727 | 
+frame - 10224
+person - confidence = 0.8991650342941284 | person - confidence = 0.9427677989006042 | chair - confidence = 0.692608118057251 | tv - confidence = 0.678652822971344 | 
+frame - 12945
+
+frame - 12958
+person - confidence = 0.9211775660514832 | person - confidence = 0.5183720588684082 | person - confidence = 0.5457313060760498 | 
+frame - 15299
+person - confidence = 0.6712777018547058 | 
+frame - 15654
+
+frame - 15668
+bicycle - confidence = 0.817891538143158 | 
+frame - 17344
+tv - confidence = 0.7812468409538269 | 

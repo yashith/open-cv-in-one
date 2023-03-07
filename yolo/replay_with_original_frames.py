@@ -1,10 +1,10 @@
 import cv2
 
-with open("final_boundaries.txt", 'r') as f:
+with open("final_boundaries_cropped_obj.txt", 'r') as f:
     boundaries = [line.strip() for line in f.readlines()]
     
 frame_id = 0 
-cap= cv2.VideoCapture("../news.mp4")
+cap= cv2.VideoCapture("../violencec_1.mp4")
 
 while True:
     
@@ -16,6 +16,7 @@ while True:
     cv2.imshow("video", frame) 
     key = cv2.waitKey(1)
     if str(frame_id) in boundaries:
+        print(f"frame Id : {frame_id}")
         key = cv2.waitKey(0)
         
     if(key==ord('p')):

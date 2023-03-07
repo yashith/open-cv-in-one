@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import scipy.ndimage as ndimage
 import scipy.stats as stats
 
-cap = cv.VideoCapture("E:\\OpenCV tests\\news.mp4")
+cap = cv.VideoCapture("E:\\OpenCV tests\\violencec_1.mp4")
 ret, prev_frame = cap.read()
 
 hue_values=[]
