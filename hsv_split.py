@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import scipy.ndimage as ndimage
 import scipy.stats as stats
 
-cap = cv.VideoCapture("E:\\OpenCV tests\\violencec_1.mp4")
+cap = cv.VideoCapture("E:\\OpenCV tests\\Videos\\test5.mp4")
 ret, prev_frame = cap.read()
 
 hue_values=[]
@@ -12,7 +12,7 @@ sat_values=[]
 lum_values=[]
 
 frame_id = 1
-file = open("hsv_frames_news.txt",'w')
+file = open("hsv_frames.txt",'w')
 def smooth_array(arr ,method):
     if method == 'n':
         window_size = 3
@@ -60,7 +60,7 @@ while True:
     key = cv.waitKey(1)
     
     cv.imshow("Video",current_frame)
-    if(diff_hue>40):
+    if(diff_hue>20):
         print("frame")
         file.write(str(frame_id))
         file.write("\n")

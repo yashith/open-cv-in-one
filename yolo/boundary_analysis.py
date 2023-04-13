@@ -9,14 +9,14 @@ classes = None
 
 with open("yolo3_classes.txt", 'r') as f:
     classes = [line.strip() for line in f.readlines()]
-with open("hsv_frames_news.txt", 'r') as f:
+with open("hsv_frames.txt", 'r') as f:
     boundaries = [line.strip() for line in f.readlines()]
 
 frame_id = 0
 file = open("boundary_objects.txt", "w")
 file2 = open("final_boundaries.txt", "w")
 file3 = open("final_boundaries_cropped_obj.txt", "w")
-cap = cv2.VideoCapture("../violencec_1.mp4")
+cap = cv2.VideoCapture("../Videos/test5.mp4")
 
 
 def prec_similar_obj(arr1, arr2=None):
@@ -49,13 +49,13 @@ def compair_dict(dict1, dict2):
 def crop_main_obj(frame, boxes, confidences):
     if(len(boxes) != 0):
         max_index = confidences.index(max(confidences))
+        print(confidences[max_index])
         x = round(boxes[max_index][0])
         y = round(boxes[max_index][1])
         x_w = round(boxes[max_index][0]+boxes[max_index][2])
         y_h = round(boxes[max_index][1]+boxes[max_index][3])
         crop_img = frame[y:y_h, x:x_w]
         return crop_img
-
 
 obj_arr = None
 prev_frame_hco = None
@@ -93,11 +93,11 @@ while True:
             cv2.imshow("prev_frame",prev_frame_hco)
             cv2.imshow("current_frame",current_frame_hco)
         except:
-            is_blur = check_blur_wavelet(frame,100)
+            is_blur = check_blur_wavelet(frame,150)
             if(not is_blur):           
                 file3.write(f"{frame_id}")
                 file3.write("\n")
-                print("Blur found")
+                print("Blur not found")
             print("No obj or blur found")
 
         #for checking object confidence (Not functional)
