@@ -3,6 +3,7 @@ import cv2
 from yolo import get_yolo_objects
 from huediff import diff_hist
 from motion_blur import check_blur,check_blur_wavelet
+import traceback
 
 boundaries = None
 classes = None
@@ -46,7 +47,7 @@ def compair_dict(dict1, dict2):
     # return True
 
 
-def crop_main_obj(frame, boxes, confidences):
+def crop_main_obj(frame, boxes, confidences,class_ids):
     if(len(boxes) != 0):
         max_index = confidences.index(max(confidences))
         print(confidences[max_index])
@@ -55,10 +56,21 @@ def crop_main_obj(frame, boxes, confidences):
         x_w = round(boxes[max_index][0]+boxes[max_index][2])
         y_h = round(boxes[max_index][1]+boxes[max_index][3])
         crop_img = frame[y:y_h, x:x_w]
+        return crop_img,class_ids[max_index]
+    return None,None
+def crop_obj(frame, boxes, index):
+    if(len(boxes) != 0):
+        print(confidences[index])
+        x = round(boxes[index][0])
+        y = round(boxes[index][1])
+        x_w = round(boxes[index][0]+boxes[index][2])
+        y_h = round(boxes[index][1]+boxes[index][3])
+        crop_img = frame[y:y_h, x:x_w]
         return crop_img
-
+    return None
 obj_arr = None
 prev_frame_hco = None
+prev_class_id = None
 current_frame_hco = None
 while True:
 
@@ -71,7 +83,16 @@ while True:
     # check current frame in the saved list
     if str(frame_id+1) in boundaries:
         indices, class_ids, boxes, confidences = get_yolo_objects(frame)
-        prev_frame_hco = crop_main_obj(frame,boxes,confidences)
+        try:
+            prev_frame_hco,prev_class_id = crop_main_obj(frame,boxes,confidences,class_ids)
+            if(type(prev_frame_hco) is None):
+                is_blur = check_blur_wavelet(frame,150)
+                if(not is_blur):           
+                    # file3.write(f"{frame_id+1}")
+                    # file3.write("\n")
+                    print("Blur not found in prev frame")
+        except:
+            print("Prev farme error")
     elif str(frame_id) in boundaries:
         indices, class_ids, boxes, confidences = get_yolo_objects(frame)
 
@@ -81,25 +102,31 @@ while True:
 
         # get max confidence item
         max_index = None
-
-        current_frame_hco = crop_main_obj(frame,boxes,confidences)
-        try:
-            
-            distance = diff_hist(prev_frame_hco,current_frame_hco)
-            
-            if(distance>0.4):
-                file3.write(f"{frame_id}")
-                file3.write("\n")
-            cv2.imshow("prev_frame",prev_frame_hco)
-            cv2.imshow("current_frame",current_frame_hco)
-        except:
-            is_blur = check_blur_wavelet(frame,150)
-            if(not is_blur):           
-                file3.write(f"{frame_id}")
-                file3.write("\n")
-                print("Blur not found")
-            print("No obj or blur found")
-
+        matching_object_exist =False
+        for i in indices:
+            if(class_ids[i]==prev_class_id):        
+                current_frame_hco = crop_obj(frame,boxes,i)
+                try:
+                    
+                    distance = diff_hist(prev_frame_hco,current_frame_hco)
+                    print(f'{frame_id} - {distance}')
+                    if(distance<=0.4):
+                        matching_object_exist= True
+                        cv2.imshow("prev_frame",prev_frame_hco)
+                        cv2.imshow("current_frame",current_frame_hco)
+                        break   
+                    
+                except:
+                    is_blur = check_blur_wavelet(frame,150)
+                    if(not is_blur):           
+                        file3.write(f"{frame_id}")
+                        file3.write("\n")
+                        print("Blur not found")
+                    print("No obj or blur found")
+        if(not matching_object_exist):
+            file3.write(f"{frame_id}")
+            file3.write("\n") 
+            matching_object_exist = False
         #for checking object confidence (Not functional)
         for index, i in enumerate(indices):
             file.write(
