@@ -17,7 +17,7 @@ frame_id = 0
 file = open("boundary_objects.txt", "w")
 file2 = open("final_boundaries.txt", "w")
 file3 = open("final_boundaries_cropped_obj.txt", "w")
-cap = cv2.VideoCapture("../Videos/test5.mp4")
+cap = cv2.VideoCapture("../Videos/news.mp4")
 
 
 def prec_similar_obj(arr1, arr2=None):
@@ -73,21 +73,29 @@ prev_frame_hco = None
 prev_class_id = None
 current_frame_hco = None
 while True:
-
     ret, frame = cap.read()
 
     if not ret:
         break
-
+    cv2.imshow("vid", frame)
+    cv2.waitKey(1)
+    #frame_id==1987 or frame_id==2232 or frame_id==2237 or 
+    if(frame_id==2520):
+        print("frame")
+        ##
+    
     color = (255, 0, 0)
     # check current frame in the saved list
+    
     if str(frame_id+1) in boundaries:
+        prev_frame_blur = False
         indices, class_ids, boxes, confidences = get_yolo_objects(frame)
         try:
             prev_frame_hco,prev_class_id = crop_main_obj(frame,boxes,confidences,class_ids)
-            if(type(prev_frame_hco) is None):
-                is_blur = check_blur_wavelet(frame,150)
-                if(not is_blur):           
+            if(prev_frame_hco == None or prev_frame_hco.size==0):
+                prev_frame_blur = check_blur_wavelet(frame,200)
+                prev_frame_blur  = True
+                if(not prev_frame_blur):           
                     # file3.write(f"{frame_id+1}")
                     # file3.write("\n")
                     print("Blur not found in prev frame")
@@ -103,30 +111,40 @@ while True:
         # get max confidence item
         max_index = None
         matching_object_exist =False
-        for i in indices:
-            if(class_ids[i]==prev_class_id):        
+        ##testing
+        is_blur = check_blur_wavelet(frame,100)
+        if((len(class_ids)==0 or prev_class_id not in class_ids) and is_blur):           
+            matching_object_exist =True
+            print("Blur found")
+        for i,class_id in enumerate(class_ids):
+            if(class_id==prev_class_id):        
                 current_frame_hco = crop_obj(frame,boxes,i)
                 try:
+                    cv2.destroyAllWindows()
+                    cv2.imshow("vid", frame)
+                    cv2.imshow("prev_frame",prev_frame_hco)
+                    cv2.imshow("current_frame",current_frame_hco)
+                    cv2.waitKey(1)
                     
                     distance = diff_hist(prev_frame_hco,current_frame_hco)
                     print(f'{frame_id} - {distance}')
-                    if(distance<=0.4):
+                    if(distance<=0.8):
                         matching_object_exist= True
-                        cv2.imshow("prev_frame",prev_frame_hco)
-                        cv2.imshow("current_frame",current_frame_hco)
                         break   
                     
                 except:
-                    is_blur = check_blur_wavelet(frame,150)
-                    if(not is_blur):           
-                        file3.write(f"{frame_id}")
-                        file3.write("\n")
-                        print("Blur not found")
-                    print("No obj or blur found")
+                    if(type(prev_frame_hco) is None or prev_frame_hco.size==0 and prev_frame_blur):
+                        matching_object_exist= True
+                        print("No obj or blur found")
+                        break
+                    elif(current_frame_hco.size!=0):
+                        break
+                    
         if(not matching_object_exist):
             file3.write(f"{frame_id}")
             file3.write("\n") 
             matching_object_exist = False
+        prev_frame_hco=None
         #for checking object confidence (Not functional)
         for index, i in enumerate(indices):
             file.write(
@@ -143,8 +161,5 @@ while True:
         obj_arr = prec_similar_obj(class_ids)
     else:
         obj_arr = None
-
-    cv2.imshow("vid", frame)
-    cv2.waitKey(1)
 
     frame_id += 1
