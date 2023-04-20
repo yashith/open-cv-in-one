@@ -3,7 +3,7 @@ import cv2
 from yolo import get_yolo_objects
 from huediff import diff_hist
 from motion_blur import check_blur,check_blur_wavelet
-import traceback
+import numpy as np
 
 boundaries = None
 classes = None
@@ -48,15 +48,25 @@ def compair_dict(dict1, dict2):
 
 
 def crop_main_obj(frame, boxes, confidences,class_ids):
-    if(len(boxes) != 0):
-        max_index = confidences.index(max(confidences))
-        print(confidences[max_index])
-        x = round(boxes[max_index][0])
-        y = round(boxes[max_index][1])
-        x_w = round(boxes[max_index][0]+boxes[max_index][2])
-        y_h = round(boxes[max_index][1]+boxes[max_index][3])
+    big_enough_boxes=[]
+    big_enough_box_confidences=[]
+    big_enough_box_class_ids=[]
+     # set minimum considering object size to 1/8 of frame
+    min_object_size = int(frame.shape[0]*frame.shape[1]/8) 
+    for i,box in enumerate(boxes):
+        if(box[2]*box[3]>min_object_size and box[0]>0 and box[1]>0 and box[2]>0 and box[3]>0): # check big enough or remove negative values if exist
+           big_enough_boxes.append(box)
+           big_enough_box_confidences.append(confidences[i]) 
+           big_enough_box_class_ids.append(class_ids[i])  
+    if(len(big_enough_boxes) != 0):
+        max_index = big_enough_box_confidences.index(max(big_enough_box_confidences))
+        print(big_enough_box_confidences[max_index])
+        x = round(big_enough_boxes[max_index][0])
+        y = round(big_enough_boxes[max_index][1])
+        x_w = round(big_enough_boxes[max_index][0]+big_enough_boxes[max_index][2])
+        y_h = round(big_enough_boxes[max_index][1]+big_enough_boxes[max_index][3])
         crop_img = frame[y:y_h, x:x_w]
-        return crop_img,class_ids[max_index]
+        return crop_img,big_enough_box_class_ids[max_index]
     return None,None
 def crop_obj(frame, boxes, index):
     if(len(boxes) != 0):
@@ -79,9 +89,10 @@ while True:
         break
     cv2.imshow("vid", frame)
     cv2.waitKey(1)
-    #frame_id==1987 or frame_id==2232 or frame_id==2237 or 
-    if(frame_id==2520):
-        print("frame")
+    
+    testing_frames=[2069]
+    if(frame_id in testing_frames):
+        print("testing frame")
         ##
     
     color = (255, 0, 0)
@@ -92,15 +103,21 @@ while True:
         indices, class_ids, boxes, confidences = get_yolo_objects(frame)
         try:
             prev_frame_hco,prev_class_id = crop_main_obj(frame,boxes,confidences,class_ids)
-            if(prev_frame_hco == None or prev_frame_hco.size==0):
+            if(type(prev_frame_hco)is np.ndarray):
+                if(prev_frame_hco.size==0):
+                    prev_frame_blur = check_blur_wavelet(frame,200)
+                    if(not prev_frame_blur):           
+                        # file3.write(f"{frame_id+1}")
+                        # file3.write("\n")
+                        print("Blur not found in prev frame")
+            elif(prev_frame_hco == None):
                 prev_frame_blur = check_blur_wavelet(frame,200)
-                prev_frame_blur  = True
                 if(not prev_frame_blur):           
                     # file3.write(f"{frame_id+1}")
                     # file3.write("\n")
                     print("Blur not found in prev frame")
         except:
-            print("Prev farme error")
+            print(f"{frame_id} Prev farme error")
     elif str(frame_id) in boundaries:
         indices, class_ids, boxes, confidences = get_yolo_objects(frame)
 
@@ -133,7 +150,12 @@ while True:
                         break   
                     
                 except:
-                    if(type(prev_frame_hco) is None or prev_frame_hco.size==0 and prev_frame_blur):
+                    if(type(prev_frame_hco)is np.ndarray):
+                        if(prev_frame_hco.size==0 and prev_frame_blur):
+                            matching_object_exist= True
+                            print("No obj or blur found")
+                            break
+                    elif(prev_frame_hco==None and prev_frame_blur):
                         matching_object_exist= True
                         print("No obj or blur found")
                         break
