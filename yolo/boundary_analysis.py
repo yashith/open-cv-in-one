@@ -17,7 +17,7 @@ frame_id = 0
 file = open("boundary_objects.txt", "w")
 file2 = open("final_boundaries.txt", "w")
 file3 = open("final_boundaries_cropped_obj.txt", "w")
-cap = cv2.VideoCapture("../Videos/news.mp4")
+cap = cv2.VideoCapture("../Videos/test5.mp4")
 
 
 def prec_similar_obj(arr1, arr2=None):
@@ -52,7 +52,7 @@ def crop_main_obj(frame, boxes, confidences,class_ids):
     big_enough_box_confidences=[]
     big_enough_box_class_ids=[]
      # set minimum considering object size to 1/8 of frame
-    min_object_size = int(frame.shape[0]*frame.shape[1]/8) 
+    min_object_size = int(frame.shape[0]*frame.shape[1]/20) 
     for i,box in enumerate(boxes):
         if(box[2]*box[3]>min_object_size and box[0]>0 and box[1]>0 and box[2]>0 and box[3]>0): # check big enough or remove negative values if exist
            big_enough_boxes.append(box)
@@ -90,7 +90,7 @@ while True:
     cv2.imshow("vid", frame)
     cv2.waitKey(1)
     
-    testing_frames=[2069]
+    testing_frames=[2057,2068,2520]
     if(frame_id in testing_frames):
         print("testing frame")
         ##
@@ -129,38 +129,37 @@ while True:
         max_index = None
         matching_object_exist =False
         ##testing
-        is_blur = check_blur_wavelet(frame,100)
+        is_blur = check_blur_wavelet(frame,200)
         if((len(class_ids)==0 or prev_class_id not in class_ids) and is_blur):           
             matching_object_exist =True
             print("Blur found")
         for i,class_id in enumerate(class_ids):
-            if(class_id==prev_class_id):        
+            if(prev_class_id != None and class_id==prev_class_id):        
                 current_frame_hco = crop_obj(frame,boxes,i)
-                try:
-                    cv2.destroyAllWindows()
-                    cv2.imshow("vid", frame)
-                    cv2.imshow("prev_frame",prev_frame_hco)
-                    cv2.imshow("current_frame",current_frame_hco)
-                    cv2.waitKey(1)
-                    
+                
+                # cv2.destroyAllWindows()
+                # cv2.imshow("vid", frame)
+                # cv2.imshow("prev_frame",prev_frame_hco)
+                # cv2.imshow("current_frame",current_frame_hco)
+                # cv2.waitKey(1)
+                if(current_frame_hco.size!=0):
                     distance = diff_hist(prev_frame_hco,current_frame_hco)
                     print(f'{frame_id} - {distance}')
-                    if(distance<=0.8):
+                    if(distance<=0.5):
                         matching_object_exist= True
-                        break   
-                    
-                except:
-                    if(type(prev_frame_hco)is np.ndarray):
-                        if(prev_frame_hco.size==0 and prev_frame_blur):
-                            matching_object_exist= True
-                            print("No obj or blur found")
-                            break
-                    elif(prev_frame_hco==None and prev_frame_blur):
+                        break          
+            else:
+                if(type(prev_frame_hco)is np.ndarray):
+                    if(prev_frame_hco.size==0 and prev_frame_blur):
                         matching_object_exist= True
                         print("No obj or blur found")
                         break
-                    elif(current_frame_hco.size!=0):
-                        break
+                elif(prev_frame_hco==None and prev_frame_blur):
+                    matching_object_exist= True
+                    print("No obj or blur found")
+                    break
+                elif(current_frame_hco.size!=0):
+                    break
                     
         if(not matching_object_exist):
             file3.write(f"{frame_id}")
