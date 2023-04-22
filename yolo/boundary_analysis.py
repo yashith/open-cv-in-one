@@ -1,9 +1,10 @@
 from ast import Dict, List, Str
 import cv2
-from yolo import get_yolo_objects
+from yolo import get_yolo_objects,draw_prediction
 from huediff import diff_hist
 from motion_blur import check_blur,check_blur_wavelet
 import numpy as np
+import math
 
 boundaries = None
 classes = None
@@ -17,7 +18,7 @@ frame_id = 0
 file = open("boundary_objects.txt", "w")
 file2 = open("final_boundaries.txt", "w")
 file3 = open("final_boundaries_cropped_obj.txt", "w")
-cap = cv2.VideoCapture("../Videos/test5.mp4")
+cap = cv2.VideoCapture("../Videos/test_3.mp4")
 
 
 def prec_similar_obj(arr1, arr2=None):
@@ -46,13 +47,28 @@ def compair_dict(dict1, dict2):
     #             return False
     # return True
 
+def get_mid_point(box):
+    middle_point = (round(box[0]+box[2]/2),round(box[1]+box[3]/2))
+    return middle_point
+
+def get_nearest_object(middle_point,boxes,classes,prev_class):
+    smallest_distance = math.inf
+    nearest_object_index=None
+    for i,box in enumerate(boxes):
+        if(classes[i]==prev_class):
+            b_mid = get_mid_point(box)
+            distance_to_main_object = (abs(middle_point[0])-abs(b_mid[0]))**2  + (abs(middle_point[1])-abs(b_mid[1]))**2
+            if(distance_to_main_object<smallest_distance):
+                nearest_object_index=i
+                smallest_distance = distance_to_main_object
+    return nearest_object_index
 
 def crop_main_obj(frame, boxes, confidences,class_ids):
     big_enough_boxes=[]
     big_enough_box_confidences=[]
     big_enough_box_class_ids=[]
      # set minimum considering object size to 1/8 of frame
-    min_object_size = int(frame.shape[0]*frame.shape[1]/20) 
+    min_object_size = int(frame.shape[0]*frame.shape[1]/100) 
     for i,box in enumerate(boxes):
         if(box[2]*box[3]>min_object_size and box[0]>0 and box[1]>0 and box[2]>0 and box[3]>0): # check big enough or remove negative values if exist
            big_enough_boxes.append(box)
@@ -65,9 +81,10 @@ def crop_main_obj(frame, boxes, confidences,class_ids):
         y = round(big_enough_boxes[max_index][1])
         x_w = round(big_enough_boxes[max_index][0]+big_enough_boxes[max_index][2])
         y_h = round(big_enough_boxes[max_index][1]+big_enough_boxes[max_index][3])
+        middle_point = get_mid_point(big_enough_boxes[max_index])
         crop_img = frame[y:y_h, x:x_w]
-        return crop_img,big_enough_box_class_ids[max_index]
-    return None,None
+        return crop_img,big_enough_box_class_ids[max_index],middle_point
+    return None,None,None
 def crop_obj(frame, boxes, index):
     if(len(boxes) != 0):
         print(confidences[index])
@@ -81,6 +98,7 @@ def crop_obj(frame, boxes, index):
 obj_arr = None
 prev_frame_hco = None
 prev_class_id = None
+prev_hco_mid =None
 current_frame_hco = None
 while True:
     ret, frame = cap.read()
@@ -90,7 +108,7 @@ while True:
     cv2.imshow("vid", frame)
     cv2.waitKey(1)
     
-    testing_frames=[2057,2068,2520]
+    testing_frames=[3183,2057,2068,2520]
     if(frame_id in testing_frames):
         print("testing frame")
         ##
@@ -102,7 +120,7 @@ while True:
         prev_frame_blur = False
         indices, class_ids, boxes, confidences = get_yolo_objects(frame)
         try:
-            prev_frame_hco,prev_class_id = crop_main_obj(frame,boxes,confidences,class_ids)
+            prev_frame_hco,prev_class_id, prev_hco_mid = crop_main_obj(frame,boxes,confidences,class_ids)
             if(type(prev_frame_hco)is np.ndarray):
                 if(prev_frame_hco.size==0):
                     prev_frame_blur = check_blur_wavelet(frame,200)
@@ -120,13 +138,11 @@ while True:
             print(f"{frame_id} Prev farme error")
     elif str(frame_id) in boundaries:
         indices, class_ids, boxes, confidences = get_yolo_objects(frame)
-
+        neareset_obj_index = get_nearest_object(prev_hco_mid,boxes,class_ids,prev_class_id)
         # write object to file
         file.write(f"frame - {frame_id}")
         file.write("\n")
 
-        # get max confidence item
-        max_index = None
         matching_object_exist =False
         ##testing
         is_blur = check_blur_wavelet(frame,200)
@@ -134,14 +150,15 @@ while True:
             matching_object_exist =True
             print("Blur found")
         for i,class_id in enumerate(class_ids):
-            if(prev_class_id != None and class_id==prev_class_id):        
+            if(prev_class_id != None and neareset_obj_index != None and neareset_obj_index==i):        
                 current_frame_hco = crop_obj(frame,boxes,i)
-                
+                # draw_prediction(frame,class_id,0,boxes[i][0],boxes[i][1],boxes[i][0]+boxes[i][2],boxes[i][1]+boxes[i][3])
+                b_frame = cv2.rectangle(frame, (round(boxes[i][0]),round(boxes[i][1])), (round(boxes[i][0]+boxes[i][2]),round(boxes[i][1]+boxes[i][3])), (255,0,0), 2)
                 # cv2.destroyAllWindows()
-                # cv2.imshow("vid", frame)
-                # cv2.imshow("prev_frame",prev_frame_hco)
-                # cv2.imshow("current_frame",current_frame_hco)
-                # cv2.waitKey(1)
+                cv2.imshow("vid", b_frame)
+                cv2.imshow("prev_frame",prev_frame_hco)
+                #cv2.imshow("current_frame",current_frame_hco)
+                cv2.waitKey(1)
                 if(current_frame_hco.size!=0):
                     distance = diff_hist(prev_frame_hco,current_frame_hco)
                     print(f'{frame_id} - {distance}')
@@ -158,7 +175,7 @@ while True:
                     matching_object_exist= True
                     print("No obj or blur found")
                     break
-                elif(current_frame_hco.size!=0):
+                elif(neareset_obj_index == None or current_frame_hco.size!=0):
                     break
                     
         if(not matching_object_exist):
