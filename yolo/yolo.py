@@ -14,6 +14,10 @@ ap.add_argument('-cl', '--classes', required=False,
                 help = 'path to text file containing class names', default="./yolo3_classes.txt")
 args = ap.parse_args()
 
+classes = None
+
+with open("yolo3_classes.txt", 'r') as f:
+    classes = [line.strip() for line in f.readlines()]
 
 def get_output_layers(net):
     
@@ -30,7 +34,7 @@ def draw_prediction(img, class_id, confidence, x, y, x_plus_w, y_plus_h):
 
     label = str(classes[class_id])
 
-    color = COLORS[class_id]
+    color = (18, 255, 255)
 
     cv2.rectangle(img, (x,y), (x_plus_w,y_plus_h), color, 2)
 
@@ -79,7 +83,7 @@ def get_yolo_objects(image):
     return(indices,class_ids,boxes,confidences)
 
 ''''    
-cap= cv2.VideoCapture("../news.mp4")
+cap= cv2.VideoCapture("../test_3.mp4")
 
 file = open("newsframes2.txt",'w')
 current_frame = 1

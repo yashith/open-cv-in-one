@@ -3,8 +3,19 @@ import cv2
 from yolo import get_yolo_objects,draw_prediction
 from huediff import diff_hist
 from motion_blur import check_blur,check_blur_wavelet
+from harr_wavelet_blur import blur_detect
 import numpy as np
 import math
+from configparser import ConfigParser
+
+config = ConfigParser()
+config.read("E:\OpenCV tests\yolo\configs.ini")
+v_path = config['video']['path']
+main_obj_size = int(config['boundary']['main_obj_size'])
+har_wavelet_tresh = float(config['boundary']['har_wavelet_tresh'])
+har_decision_thresh = float(config['boundary']['har_decision_thresh'])
+bh_distance_thresh = float(config['boundary']['bh_distance_thresh'])
+
 
 boundaries = None
 classes = None
@@ -18,7 +29,7 @@ frame_id = 0
 file = open("boundary_objects.txt", "w")
 file2 = open("final_boundaries.txt", "w")
 file3 = open("final_boundaries_cropped_obj.txt", "w")
-cap = cv2.VideoCapture("../Videos/test_3.mp4")
+cap = cv2.VideoCapture(v_path)
 
 
 def prec_similar_obj(arr1, arr2=None):
@@ -67,13 +78,16 @@ def crop_main_obj(frame, boxes, confidences,class_ids):
     big_enough_boxes=[]
     big_enough_box_confidences=[]
     big_enough_box_class_ids=[]
-     # set minimum considering object size to 1/8 of frame
-    min_object_size = int(frame.shape[0]*frame.shape[1]/100) 
-    for i,box in enumerate(boxes):
-        if(box[2]*box[3]>min_object_size and box[0]>0 and box[1]>0 and box[2]>0 and box[3]>0): # check big enough or remove negative values if exist
-           big_enough_boxes.append(box)
-           big_enough_box_confidences.append(confidences[i]) 
-           big_enough_box_class_ids.append(class_ids[i])  
+     # set minimum considering object size to 1/100 of frame
+    min_object_size = int(frame.shape[0]*frame.shape[1]/main_obj_size) 
+    for i in range(2):
+        for i,box in enumerate(boxes):
+            if(box[2]*box[3]>min_object_size and box[0]>0 and box[1]>0 and box[2]>0 and box[3]>0): # check big enough or remove negative values if exist
+                big_enough_boxes.append(box)
+                big_enough_box_confidences.append(confidences[i]) 
+                big_enough_box_class_ids.append(class_ids[i])  
+        if(len(big_enough_boxes)==0): # check big enough boxes twice 1st time full size, if nothing found full size/2
+            min_object_size = int(min_object_size/2)
     if(len(big_enough_boxes) != 0):
         max_index = big_enough_box_confidences.index(max(big_enough_box_confidences))
         print(big_enough_box_confidences[max_index])
@@ -87,7 +101,6 @@ def crop_main_obj(frame, boxes, confidences,class_ids):
     return None,None,None
 def crop_obj(frame, boxes, index):
     if(len(boxes) != 0):
-        print(confidences[index])
         x = round(boxes[index][0])
         y = round(boxes[index][1])
         x_w = round(boxes[index][0]+boxes[index][2])
@@ -108,7 +121,7 @@ while True:
     cv2.imshow("vid", frame)
     cv2.waitKey(1)
     
-    testing_frames=[3183,2057,2068,2520]
+    testing_frames=[842,2057,2068,2520]
     if(frame_id in testing_frames):
         print("testing frame")
         ##
@@ -123,13 +136,15 @@ while True:
             prev_frame_hco,prev_class_id, prev_hco_mid = crop_main_obj(frame,boxes,confidences,class_ids)
             if(type(prev_frame_hco)is np.ndarray):
                 if(prev_frame_hco.size==0):
-                    prev_frame_blur = check_blur_wavelet(frame,200)
+                    per, blurext = blur_detect(frame,har_wavelet_tresh)
+                    prev_frame_blur = per < har_decision_thresh # Decision Threshold considered as 0.001 
                     if(not prev_frame_blur):           
                         # file3.write(f"{frame_id+1}")
                         # file3.write("\n")
                         print("Blur not found in prev frame")
             elif(prev_frame_hco == None):
-                prev_frame_blur = check_blur_wavelet(frame,200)
+                per, blurext = blur_detect(frame,har_wavelet_tresh)
+                prev_frame_blur = per < har_decision_thresh # Decision Threshold considered as 0.001 
                 if(not prev_frame_blur):           
                     # file3.write(f"{frame_id+1}")
                     # file3.write("\n")
@@ -144,8 +159,9 @@ while True:
         file.write("\n")
 
         matching_object_exist =False
-        ##testing
-        is_blur = check_blur_wavelet(frame,200)
+        per, blurext = blur_detect(frame,har_wavelet_tresh)
+        is_blur = per < har_decision_thresh # Decision Threshold considered as 0.001 
+        
         if((len(class_ids)==0 or prev_class_id not in class_ids) and is_blur):           
             matching_object_exist =True
             print("Blur found")
@@ -162,7 +178,7 @@ while True:
                 if(current_frame_hco.size!=0):
                     distance = diff_hist(prev_frame_hco,current_frame_hco)
                     print(f'{frame_id} - {distance}')
-                    if(distance<=0.5):
+                    if(distance<=bh_distance_thresh):
                         matching_object_exist= True
                         break          
             else:

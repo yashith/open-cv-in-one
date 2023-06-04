@@ -3,8 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndimage
 import scipy.stats as stats
+from configparser import ConfigParser
 
-cap = cv.VideoCapture("E:\\OpenCV tests\\Videos\\test5.mp4")
+config = ConfigParser()
+config.read("E:\OpenCV tests\yolo\configs.ini")
+v_path = config['video']['path']
+hue_difference = int(config['hue']['hue_difference'])
+cap = cv.VideoCapture(v_path)
 ret, prev_frame = cap.read()
 
 hue_values=[]
@@ -60,7 +65,7 @@ while True:
     key = cv.waitKey(1)
     
     cv.imshow("Video",current_frame)
-    if(diff_hue>20):
+    if(diff_hue>hue_difference):
         print("frame")
         file.write(str(frame_id))
         file.write("\n")

@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # Load the video
-cap = cv2.VideoCapture('news.mp4')
+cap = cv2.VideoCapture('test_3.mp4')
 
 # Define the threshold for blur detection
 threshold = 15

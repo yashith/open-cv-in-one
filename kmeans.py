@@ -3,7 +3,7 @@ import numpy as np
 import sklearn
 
 # Load the video
-cap = cv2.VideoCapture("news.mp4")
+cap = cv2.VideoCapture("test_3.mp4")
 
 # Get the video frames
 frames = []

@@ -46,7 +46,7 @@ def check_blur_wavelet(image, threshold=70):
     
 
 
-# cap = cv2.VideoCapture("../news.mp4")
+# cap = cv2.VideoCapture("../test_3.mp4")
 
 # while True:
     
