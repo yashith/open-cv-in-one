@@ -13,7 +13,8 @@ config.read("E:\OpenCV tests\yolo\configs.ini")
 v_path = config['video']['path']
 main_obj_size = int(config['boundary']['main_obj_size'])
 har_wavelet_tresh = float(config['boundary']['har_wavelet_tresh'])
-har_decision_thresh = float(config['boundary']['har_decision_thresh'])
+har_decision_high_thresh = float(config['boundary']['har_decision_thresh_high_blur'])
+har_decision_low_thresh = float(config['boundary']['har_decision_thresh_low_blur'])
 bh_distance_thresh = float(config['boundary']['bh_distance_thresh'])
 
 
@@ -82,7 +83,7 @@ def crop_main_obj(frame, boxes, confidences,class_ids):
     min_object_size = int(frame.shape[0]*frame.shape[1]/main_obj_size) 
     for i in range(2):
         for i,box in enumerate(boxes):
-            if(box[2]*box[3]>min_object_size and box[0]>0 and box[1]>0 and box[2]>0 and box[3]>0): # check big enough or remove negative values if exist
+            if(box[2]*box[3]>min_object_size and box[0]>0 and box[1]>0 and box[2]>0 and box[3]>0 and confidences[i] >0.75): # check big enough or remove negative values if exist and confidence >0.75
                 big_enough_boxes.append(box)
                 big_enough_box_confidences.append(confidences[i]) 
                 big_enough_box_class_ids.append(class_ids[i])  
@@ -121,7 +122,7 @@ while True:
     cv2.imshow("vid", frame)
     cv2.waitKey(1)
     
-    testing_frames=[842,2057,2068,2520]
+    testing_frames=[961,967]
     if(frame_id in testing_frames):
         print("testing frame")
         ##
@@ -137,34 +138,49 @@ while True:
             if(type(prev_frame_hco)is np.ndarray):
                 if(prev_frame_hco.size==0):
                     per, blurext = blur_detect(frame,har_wavelet_tresh)
-                    prev_frame_blur = per < har_decision_thresh # Decision Threshold considered as 0.001 
+                    prev_frame_blur = per < har_decision_low_thresh # Decision Threshold considered as 0.001 
                     if(not prev_frame_blur):           
                         # file3.write(f"{frame_id+1}")
                         # file3.write("\n")
-                        print("Blur not found in prev frame")
+                        print("Blur not found in prev frame_hco and size 0")
+                    else:
+                        boundaries.remove(frame_id)
+                        #reset all
+                        prev_frame_hco = None
+                        prev_class_id = None
+                        prev_hco_mid =None
+                        current_frame_hco = None
             elif(prev_frame_hco == None):
                 per, blurext = blur_detect(frame,har_wavelet_tresh)
-                prev_frame_blur = per < har_decision_thresh # Decision Threshold considered as 0.001 
+                prev_frame_blur = per < har_decision_low_thresh # Decision Threshold considered as 0.001 
                 if(not prev_frame_blur):           
                     # file3.write(f"{frame_id+1}")
                     # file3.write("\n")
-                    print("Blur not found in prev frame")
+                    print("Blur not found in prev frame_hco and None")
+                else:
+                    boundaries.remove(frame_id)
+                    #reset all
+                    prev_frame_hco = None
+                    prev_class_id = None
+                    prev_hco_mid =None
+                    current_frame_hco = None
         except:
             print(f"{frame_id} Prev farme error")
     elif str(frame_id) in boundaries:
         indices, class_ids, boxes, confidences = get_yolo_objects(frame)
+        
+        per, blurext = blur_detect(frame,har_wavelet_tresh)
         neareset_obj_index = get_nearest_object(prev_hco_mid,boxes,class_ids,prev_class_id)
         # write object to file
         file.write(f"frame - {frame_id}")
         file.write("\n")
 
         matching_object_exist =False
-        per, blurext = blur_detect(frame,har_wavelet_tresh)
-        is_blur = per < har_decision_thresh # Decision Threshold considered as 0.001 
+        is_blur = per < har_decision_high_thresh # Decision Threshold considered as 0.001 
         
-        if((len(class_ids)==0 or prev_class_id not in class_ids) and is_blur):           
-            matching_object_exist =True
-            print("Blur found")
+        if((len(class_ids)==0 or prev_class_id not in class_ids) and is_blur):  # if high blur found dont consider object detection         
+            matching_object_exist =True #Since considering motion blur is only in same scene
+            print("High Blur found")
         for i,class_id in enumerate(class_ids):
             if(prev_class_id != None and neareset_obj_index != None and neareset_obj_index==i):        
                 current_frame_hco = crop_obj(frame,boxes,i)
@@ -178,8 +194,11 @@ while True:
                 if(current_frame_hco.size!=0):
                     distance = diff_hist(prev_frame_hco,current_frame_hco)
                     print(f'{frame_id} - {distance}')
+                    cv2.imwrite(f"cropped_obj/{frame_id}.png",prev_frame_hco)
+                    cv2.imwrite(f"cropped_obj/{frame_id}_1.png",current_frame_hco)
                     if(distance<=bh_distance_thresh):
                         matching_object_exist= True
+                        
                         break          
             else:
                 if(type(prev_frame_hco)is np.ndarray):
@@ -198,7 +217,11 @@ while True:
             file3.write(f"{frame_id}")
             file3.write("\n") 
             matching_object_exist = False
-        prev_frame_hco=None
+        #reset all
+        prev_frame_hco = None
+        prev_class_id = None
+        prev_hco_mid =None
+        current_frame_hco = None
         #for checking object confidence (Not functional)
         for index, i in enumerate(indices):
             file.write(
@@ -210,7 +233,8 @@ while True:
         if obj_arr != None and compair_dict(obj_arr, prec_similar_obj(class_ids)):
             print(f"frame {frame_id}")
         else:
-            file2.write(f"{frame_id}")
+            per, blurext = blur_detect(frame,har_wavelet_tresh)
+            file2.write(f"{frame_id} - {per}")
             file2.write(f"\n")
         obj_arr = prec_similar_obj(class_ids)
     else:
