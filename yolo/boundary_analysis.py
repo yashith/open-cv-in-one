@@ -63,20 +63,21 @@ def get_mid_point(box):
     middle_point = (round(box[0]+box[2]/2),round(box[1]+box[3]/2))
     return middle_point
 
-def get_nearest_object(middle_point,boxes,classes,prev_class):
+def get_nearest_object(middle_point,boxes,classes,prev_class,confidences):
     smallest_distance = math.inf
     nearest_object_index=None
     for i,box in enumerate(boxes):
         if(classes[i]==prev_class):
             b_mid = get_mid_point(box)
             distance_to_main_object = (abs(middle_point[0])-abs(b_mid[0]))**2  + (abs(middle_point[1])-abs(b_mid[1]))**2
-            if(distance_to_main_object<smallest_distance):
+            if(distance_to_main_object<smallest_distance and confidences[i]>0.75):
                 nearest_object_index=i
                 smallest_distance = distance_to_main_object
     return nearest_object_index
 
 def crop_main_obj(frame, boxes, confidences,class_ids):
     big_enough_boxes=[]
+    big_enough_boxe_sizes=[]
     big_enough_box_confidences=[]
     big_enough_box_class_ids=[]
      # set minimum considering object size to 1/100 of frame
@@ -85,12 +86,17 @@ def crop_main_obj(frame, boxes, confidences,class_ids):
         for i,box in enumerate(boxes):
             if(box[2]*box[3]>min_object_size and box[0]>0 and box[1]>0 and box[2]>0 and box[3]>0 and confidences[i] >0.75): # check big enough or remove negative values if exist and confidence >0.75
                 big_enough_boxes.append(box)
+                big_enough_boxe_sizes.append(box[2]*box[3])
                 big_enough_box_confidences.append(confidences[i]) 
                 big_enough_box_class_ids.append(class_ids[i])  
         if(len(big_enough_boxes)==0): # check big enough boxes twice 1st time full size, if nothing found full size/2
             min_object_size = int(min_object_size/2)
     if(len(big_enough_boxes) != 0):
-        max_index = big_enough_box_confidences.index(max(big_enough_box_confidences))
+        # if filtering from confidence enable below
+        # max_index = big_enough_box_confidences.index(max(big_enough_box_confidences))
+        # if filtering from size enable below
+        max_index = big_enough_boxe_sizes.index(max(big_enough_boxe_sizes))
+        
         print(big_enough_box_confidences[max_index])
         x = round(big_enough_boxes[max_index][0])
         y = round(big_enough_boxes[max_index][1])
@@ -178,7 +184,7 @@ while True:
         indices, class_ids, boxes, confidences = get_yolo_objects(frame)
         
         per, blurext = blur_detect(frame,har_wavelet_tresh)
-        neareset_obj_index = get_nearest_object(prev_hco_mid,boxes,class_ids,prev_class_id)
+        neareset_obj_index = get_nearest_object(prev_hco_mid,boxes,class_ids,prev_class_id,confidences)
         # write object to file
         file.write(f"frame - {frame_id}")
         file.write("\n")
