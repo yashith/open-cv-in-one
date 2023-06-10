@@ -20,7 +20,7 @@ bh_distance_thresh = float(config['boundary']['bh_distance_thresh'])
 
 boundaries = None
 classes = None
-
+previos_hco_dict={}
 with open("yolo3_classes.txt", 'r') as f:
     classes = [line.strip() for line in f.readlines()]
 with open("hsv_frames.txt", 'r') as f:
@@ -109,6 +109,12 @@ def crop_obj(frame, boxes, index):
         crop_img = frame[y:y_h, x:x_w]
         return crop_img
     return None
+def get_hco_from_memory(dictionary,lb,ub):
+    hco = []
+    for key, value in dictionary.items():
+        if isinstance(key, int) and key > lb and key < ub:
+            hco.append(value)
+    return hco
 obj_arr = None
 prev_frame_hco = None
 prev_class_id = None
@@ -122,7 +128,7 @@ while True:
     cv2.imshow("vid", frame)
     cv2.waitKey(1)
     
-    testing_frames=[961,967]
+    testing_frames=[2057,2232]
     if(frame_id in testing_frames):
         print("testing frame")
         ##
@@ -156,7 +162,9 @@ while True:
                 if(not prev_frame_blur):           
                     # file3.write(f"{frame_id+1}")
                     # file3.write("\n")
-                    print("Blur not found in prev frame_hco and None")
+                    print("Blur not found in prev frame_hco and None continuing search in next frame")
+                    # if no no objects detected and not blur consider the next frame to detect objects
+                    boundaries[boundaries.index(str(frame_id+1))] =str(frame_id+2)
                 else:
                     boundaries.remove(frame_id)
                     #reset all
@@ -196,10 +204,25 @@ while True:
                     print(f'{frame_id} - {distance}')
                     cv2.imwrite(f"cropped_obj/{frame_id}.png",prev_frame_hco)
                     cv2.imwrite(f"cropped_obj/{frame_id}_1.png",current_frame_hco)
+                    
+                    #add extracted object into a dictionary to compare later
+                    previos_hco_dict.update({(frame_id-1):prev_frame_hco})
+                    previos_hco_dict.update({frame_id:current_frame_hco})
+                    
                     if(distance<=bh_distance_thresh):
-                        matching_object_exist= True
-                        
-                        break          
+                        matching_object_exist= True   
+                        break
+                    
+                    # check memory buffer within 20 frames
+                    obj_from_memory = get_hco_from_memory(previos_hco_dict,(frame_id -100),(frame_id-1))
+                    
+                    if(len(obj_from_memory)!=0):
+                        for hco in obj_from_memory:
+                            distance = diff_hist(hco,current_frame_hco)
+                            if(distance<=bh_distance_thresh):
+                                matching_object_exist= True
+                                print("Matching object found in the memory")
+                                break
             else:
                 if(type(prev_frame_hco)is np.ndarray):
                     if(prev_frame_hco.size==0 and prev_frame_blur):
