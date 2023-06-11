@@ -104,7 +104,7 @@ def crop_main_obj(frame, boxes, confidences,class_ids):
         y_h = round(big_enough_boxes[max_index][1]+big_enough_boxes[max_index][3])
         middle_point = get_mid_point(big_enough_boxes[max_index])
         crop_img = frame[y:y_h, x:x_w]
-        return crop_img,big_enough_box_class_ids[max_index],middle_point
+        return crop_img,big_enough_box_class_ids[max_index],middle_point,big_enough_boxes[max_index]
     return None,None,None
 def crop_obj(frame, boxes, index):
     if(len(boxes) != 0):
@@ -126,7 +126,6 @@ prev_frame_hco = None
 prev_class_id = None
 prev_hco_mid =None
 current_frame_hco = None
-n_minus_2_frame = None
 while True:
     ret, frame = cap.read()
 
@@ -135,7 +134,7 @@ while True:
     cv2.imshow("vid", frame)
     cv2.waitKey(1)
     
-    testing_frames=[1003,1009]
+    testing_frames=[2057,2232]
     if(frame_id in testing_frames):
         print("testing frame")
         ##
@@ -143,41 +142,30 @@ while True:
     color = (255, 0, 0)
     # check current frame in the saved list
     
-    if str(frame_id+2) in boundaries:
-        n_minus_2_frame =frame
-    elif str(frame_id+1) in boundaries:
+    if str(frame_id+1) in boundaries:
         prev_frame_blur = False
         indices, class_ids, boxes, confidences = get_yolo_objects(frame)
         try:
-            prev_frame_hco,prev_class_id, prev_hco_mid = crop_main_obj(frame,boxes,confidences,class_ids)
-            if(type(prev_frame_hco)is np.ndarray):
-                print("Prev_object_found")
-            elif(prev_frame_hco == None):
-                per, blurext = blur_detect(frame,har_wavelet_tresh)
-                prev_frame_blur = per < har_decision_low_thresh # Decision Threshold considered as 0.001 
-                if(not prev_frame_blur):           
-                    print("detecting object from f-2 frame")
-                    indices, class_ids, boxes, confidences = get_yolo_objects(n_minus_2_frame)           
-                    prev_frame_hco,prev_class_id, prev_hco_mid = crop_main_obj(n_minus_2_frame,boxes,confidences,class_ids)
-                    if(type(prev_frame_hco)is np.ndarray):
-                        print("Prev_object_found_ in f-2")
-                    elif(prev_frame_hco == None):
-                        print("no object from f-2 frame")    
-                        boundaries.remove(str(frame_id+1))
-                        #reset all
-                        prev_frame_hco = None
-                        prev_class_id = None
-                        prev_hco_mid =None
-                        current_frame_hco = None
-                else:
-                    boundaries.remove(str(frame_id+1))
-                    #reset all
-                    prev_frame_hco = None
-                    prev_class_id = None
-                    prev_hco_mid =None
-                    current_frame_hco = None
-        except Exception as e:
-            print(f"{frame_id} Prev farme error {e}")
+            prev_frame_hco,prev_class_id, prev_hco_mid,main_box = crop_main_obj(frame,boxes,confidences,class_ids)
+            blue = (255, 0, 0)
+            green = (0, 255, 0)
+            cv2.imwrite(f"cropped_obj/OD/Size/{frame_id}_ori.png",frame)
+            all_frame= frame.copy()
+            high_conf_frame = frame.copy()
+            main_obj_frame = frame.copy()
+            for i,box in enumerate(boxes):
+                all_frame=cv2.rectangle(all_frame, (int(box[0]),int(box[1])), (int(box[0]+box[2]),int(box[1]+box[3])), blue, 2)
+                if(confidences[i]>0.75):
+                    high_conf_frame=cv2.rectangle(high_conf_frame, (int(box[0]),int(box[1])), (int(box[0]+box[2]),int(box[1]+box[3])), blue, 2)
+                    print(f"{frame_id} - {confidences[i]}")
+            main_obj_frame=cv2.rectangle(main_obj_frame, (int(main_box[0]),int(main_box[1])), (int(main_box[0]+main_box[2]),int(main_box[1]+main_box[3])), green, 2)
+            
+            cv2.imwrite(f"cropped_obj/OD/Size/{frame_id}_af.png",all_frame)
+            cv2.imwrite(f"cropped_obj/OD/Size/{frame_id}_hcf.png",high_conf_frame)
+            cv2.imwrite(f"cropped_obj/OD/Size/{frame_id}_mof.png",main_obj_frame)
+            
+        except:
+            print(f"{frame_id} Prev farme error")
     elif str(frame_id) in boundaries:
         indices, class_ids, boxes, confidences = get_yolo_objects(frame)
         
@@ -198,6 +186,7 @@ while True:
                 current_frame_hco = crop_obj(frame,boxes,i)
                 # draw_prediction(frame,class_id,0,boxes[i][0],boxes[i][1],boxes[i][0]+boxes[i][2],boxes[i][1]+boxes[i][3])
                 b_frame = cv2.rectangle(frame, (round(boxes[i][0]),round(boxes[i][1])), (round(boxes[i][0]+boxes[i][2]),round(boxes[i][1]+boxes[i][3])), (255,0,0), 2)
+                cv2.imwrite(f"cropped_obj/OD/Size/{frame_id-1}_comp_obj.png",b_frame)
                 # cv2.destroyAllWindows()
                 cv2.imshow("vid", b_frame)
                 cv2.imshow("prev_frame",prev_frame_hco)
@@ -227,16 +216,18 @@ while True:
                                 matching_object_exist= True
                                 print("Matching object found in the memory")
                                 break
-            # else:
-            #     if(type(prev_frame_hco)is np.ndarray):
-            #         if(prev_frame_hco.size==0 and prev_frame_blur):
-            #             matching_object_exist= True
-            #             print("No obj or blur found")
-            #             break
-            #     elif(prev_frame_hco==None and prev_frame_blur):
-            #         matching_object_exist= True
-            #         print("No obj or blur found")
-            #         break
+            else:
+                if(type(prev_frame_hco)is np.ndarray):
+                    if(prev_frame_hco.size==0 and prev_frame_blur):
+                        matching_object_exist= True
+                        print("No obj or blur found")
+                        break
+                elif(prev_frame_hco==None and prev_frame_blur):
+                    matching_object_exist= True
+                    print("No obj or blur found")
+                    break
+                elif(neareset_obj_index == None or current_frame_hco.size!=0):
+                    break
                     
         if(not matching_object_exist):
             file3.write(f"{frame_id}")
