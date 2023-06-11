@@ -128,3 +128,13 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+yolo/final_boundaries_cropped_obj.txt
+
+*.wav
+*.mp4
+*.exe
+*.png
+*.webp
+*.txt
+*.vs
+openCVTest

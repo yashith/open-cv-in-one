@@ -24,7 +24,11 @@ previos_hco_dict={}
 with open("yolo3_classes.txt", 'r') as f:
     classes = [line.strip() for line in f.readlines()]
 with open("hsv_frames.txt", 'r') as f:
-    boundaries = [line.strip() for line in f.readlines()]
+    boundaries_ori = [line.strip() for line in f.readlines()]
+boundaries=[]
+for b in boundaries_ori:
+    if not str(int(b)-1) in boundaries:
+        boundaries.append(b)
 
 frame_id = 0
 file = open("boundary_objects.txt", "w")
@@ -135,7 +139,7 @@ while True:
     cv2.imshow("vid", frame)
     cv2.waitKey(1)
     
-    testing_frames=[1003,1009]
+    testing_frames=[962,1009]
     if(frame_id in testing_frames):
         print("testing frame")
         ##
