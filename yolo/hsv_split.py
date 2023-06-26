@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import scipy.ndimage as ndimage
 import scipy.stats as stats
 from configparser import ConfigParser
+from tqdm import tqdm
 
 config = ConfigParser()
 config.read("E:\OpenCV tests\yolo\configs.ini")
@@ -38,8 +39,8 @@ def get_local_Zscore(arr,window):
     
     return final
 
-
-
+length = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
+pbar = tqdm(total=length,desc= "Hsv Split Progress")
 
 while True:
     ret, current_frame = cap.read()
@@ -61,12 +62,12 @@ while True:
     ######
     
     prev_frame = current_frame
-    
+    pbar.update(1)
     # key = cv.waitKey(1)
-    print(frame_id)
+    # print(frame_id)
     # cv.imshow("Video",current_frame)
     if(diff_hue>hue_difference):
-        print("frame")
+        # print("frame")
         file.write(str(frame_id))
         file.write("\n")
     #     key = cv.waitKey(1) #change this to 0 to pause
@@ -101,4 +102,4 @@ ax.plot(hue_values, color='g')
 #ax.plot(smooth_array(np.diff(hue_values),"g"), color='red')
 #ax.plot(zc_arr, color='y')
 
-plt.show()
+#plt.show()
