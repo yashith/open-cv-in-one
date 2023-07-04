@@ -10,7 +10,7 @@ from configparser import ConfigParser
 from tqdm import tqdm
 
 config = ConfigParser()
-config.read("E:\OpenCV tests\yolo\configs.ini")
+config.read("configs.ini")
 v_path = config['video']['path']
 main_obj_size = int(config['boundary']['main_obj_size'])
 har_wavelet_tresh = float(config['boundary']['har_wavelet_tresh'])
@@ -149,7 +149,7 @@ while True:
     
     pbar.update(1)
     
-    testing_frames=[]
+    testing_frames=[66,1645]
     if(frame_id in testing_frames):
         log_file.write("testing frame")
     

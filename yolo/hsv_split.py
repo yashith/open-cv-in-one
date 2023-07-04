@@ -7,7 +7,7 @@ from configparser import ConfigParser
 from tqdm import tqdm
 
 config = ConfigParser()
-config.read("E:\OpenCV tests\yolo\configs.ini")
+config.read("configs.ini")
 v_path = config['video']['path']
 hue_difference = int(config['hue']['hue_difference'])
 cap = cv.VideoCapture(v_path)
